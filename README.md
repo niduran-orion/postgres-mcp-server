@@ -1,5 +1,7 @@
 # MCP PostgreSQL Server (Stateful and Dual Transport)
 
+> **Fork Note**: Este es un fork del proyecto original [`@ahmedmustahid/postgres-mcp-server`](https://github.com/ahmedmustahid/postgres-mcp-server). Este fork no está publicado en npm y debe ejecutarse localmente desde el código fuente.
+
 A Model Context Protocol (MCP) server that provides both HTTP and Stdio transports for interacting with PostgreSQL databases. This server exposes database resources and tools through both transport methods, allowing for flexible integration in different environments.
 
 ## Features
@@ -12,45 +14,46 @@ A Model Context Protocol (MCP) server that provides both HTTP and Stdio transpor
 - **Production Ready**: Graceful shutdown, error handling, and logging
 
 ## Quick Start
+
+### Prerequisites
+
+- Node.js >= 18.0.0
+- npm
+- PostgreSQL database (local o remota)
+
+### Installation
+
+1. Clone este repositorio:
+```bash
+git clone https://github.com/niduran-orion/postgres-mcp-server.git
+cd postgres-mcp-server
+```
+
+2. Instala las dependencias:
+```bash
+npm install
+# o usando el Makefile
+make install
+```
+
+3. Compila el proyecto:
+```bash
+npm run build
+# o usando el Makefile
+make build
+```
+
 ### Environment Setup
 
-The database credentials must be passed as:
-
-1. Either environment variables
-```bash
-# PostgreSQL Database Connection String
-export POSTGRES_URL=your_connection_string
-
-# PostgreSQL Database Configuration if POSTGRES_URL is not provided
-export POSTGRES_USERNAME=your_username
-export POSTGRES_PASSWORD=your_password
-export POSTGRES_HOST=localhost
-export POSTGRES_PORT=5432 # this is the default
-export POSTGRES_DATABASE=your_database
-
-# HTTP Server Configuration
-# Following are the default values
-export PORT=3000
-export HOST=0.0.0.0
-
-# CORS Configuration (comma-separated list of allowed origins)
-# Following are the default values
-export CORS_ORIGIN=http://localhost:8080,http://localhost:3000
-
-# Environment
-# Following are the default values
-export NODE_ENV=development
-
-```
-2. Or in the working directory (directory where `npx` command will be run):
-create a `.env` file (the package uses `dotenv` package)
+Crea un archivo `.env` en el directorio raíz del proyecto con las credenciales de tu base de datos:
 
 ```bash
-# .env.example
+# .env
 # PostgreSQL Database Configuration
 POSTGRES_USERNAME=your_username
 POSTGRES_PASSWORD=your_password
 POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
 POSTGRES_DATABASE=your_database
 
 # HTTP Server Configuration
@@ -64,57 +67,117 @@ CORS_ORIGIN=http://localhost:8080,http://localhost:3000
 NODE_ENV=development
 ```
 
-### Run using `npx`
+### Running the Server
 
-1. Download node.js and npm from [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-2. Run the package. By default, it will run streamable http on port 3000:
-```bash
-npx @ahmedmustahid/postgres-mcp-server
-# or npx @ahmedmustahid/postgres-mcp-server --port 3000 --verbose
-```
-3. For stdio transport:
-```bash
-npx @ahmedmustahid/postgres-mcp-server stdio
-# npx @ahmedmustahid/postgres-mcp-server stdio --verbose
-```
+#### Modo Desarrollo
 
-### Environment Setup
-
-Copy environment template
 ```bash
-cp .env.example .env
+# HTTP Server (puerto 3000 por defecto)
+npm run dev:http
+# o
+make dev-http
+
+# Stdio Server
+npm run dev:stdio
+# o
+make dev-stdio
 ```
 
-Edit your database credentials
+#### Modo Producción
+
 ```bash
-nano .env
+# HTTP Server
+npm run start:http
+# o
+make start-http
+
+# Stdio Server
+npm run start:stdio
+# o
+make start-stdio
 ```
 
-## Podman(or Docker) Usage
+### Environment Variables
 
-1. Install podman from [here](https://podman.io/docs/installation)
-2. Install `uv` from [here](https://docs.astral.sh/uv/getting-started/installation/)
-3. Install podman compose package: `uv add podman-compose` (or `uv sync` to sync packages in `pyproject.toml`)
+## Docker/Podman Usage
+
+### Usando Docker
+
+1. Asegúrate de tener Docker instalado
+2. Crea tu archivo `.env` con las credenciales de la base de datos
+3. Ejecuta los comandos:
+
 ```bash
-#get the environment variables
+# Construir las imágenes
+make docker-build
+
+# Levantar el servidor HTTP
+make docker-up
+
+# Ver logs
+make docker-logs
+
+# Detener los contenedores
+make docker-down
+
+# Limpiar todo
+make docker-clean
+```
+
+### Usando Podman
+
+1. Instala Podman desde [aquí](https://podman.io/docs/installation)
+2. Instala `uv` desde [aquí](https://docs.astral.sh/uv/getting-started/installation/)
+3. Instala podman-compose: `uv add podman-compose` (o `uv sync` para sincronizar los paquetes en `pyproject.toml`)
+4. Crea tu archivo `.env` con las credenciales
+
+```bash
+# Cargar las variables de entorno
 set -a
 source .env
 set +a
-podman machine start
-make podman-up
-```
-## Test using Claude Desktop
 
-First, install node.js and npm, build the project following the above instructions.
-Edit your `claude_desktop_config.json`
+# Iniciar Podman (si no está corriendo)
+podman machine start
+
+# Levantar el servidor HTTP
+make podman-up
+
+# Ver logs
+make podman-logs
+
+# Detener
+make podman-down
+
+# Limpiar todo
+make podman-clean
+```
+
+## Integración con Claude Desktop
+
+Para usar este servidor con Claude Desktop, necesitas configurarlo con la ruta local del proyecto compilado.
+
+### Configuración
+
+1. Compila el proyecto:
+```bash
+npm run build
+# o
+make build
+```
+
+2. Edita tu archivo de configuración de Claude Desktop (`claude_desktop_config.json`):
+
+**En macOS/Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**En Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
 ```json
 {
   "mcpServers": {
     "postgres-mcp-server": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "@ahmedmustahid/postgres-mcp-server",
-        "stdio"
+        "/ruta/completa/al/proyecto/postgres-mcp-server/dist/src/stdioIndex.js"
       ],
       "env": {
         "POSTGRES_USERNAME": "your-username",
@@ -126,46 +189,68 @@ Edit your `claude_desktop_config.json`
   }
 }
 ```
-#### Check if MCP Server has been enabled
 
-Verify from Claude Desktop Window
+> **Nota**: Reemplaza `/ruta/completa/al/proyecto` con la ruta absoluta donde clonaste este repositorio.
+
+3. Reinicia Claude Desktop
+#### Verificar que el servidor MCP está habilitado
+
+Verifica desde la ventana de Claude Desktop:
 
 ![Claude Desktop Window](images/cd_window.png)
 
-#### Using MCP Server from Claude Desktop
+#### Usar el servidor MCP desde Claude Desktop
 
-Prompt: Show `sales` table from last year.
+Ejemplo de prompt: Muestra la tabla `sales` del último año.
 
 ![Result](images/cd_mcp.png)
 
 
-### Test using MCP Inspector
+## Pruebas con MCP Inspector
 
-First, install node.js and npm, build the project following the above instructions.
-Install MCP Inspector: instructions: [here](https://modelcontextprotocol.io/docs/tools/inspector)
+MCP Inspector es una herramienta útil para probar y depurar servidores MCP.
 
-#### Check Stdio MCP Server
+### Instalación de MCP Inspector
+
 ```bash
-npx @modelcontextprotocol/inspector npx @ahmedmustahid/postgres-mcp-server stdio
+npm install -g @modelcontextprotocol/inspector
+# o usa npx sin instalarlo
 ```
+
+### Probar el servidor Stdio
+
+Después de compilar el proyecto, ejecuta:
+
+```bash
+npx @modelcontextprotocol/inspector node /ruta/completa/al/proyecto/dist/src/stdioIndex.js
+```
+
+> Reemplaza `/ruta/completa/al/proyecto` con la ruta donde clonaste este repositorio.
+
 ![Stdio in MCP Inspector](images/mcp_insp_stdio.png)
 
-#### Check Streamable HTTP MCP Server
+### Probar el servidor HTTP
 
-First, run the server (shell where environment has been configured):
+1. Primero, inicia el servidor HTTP (en una terminal con las variables de entorno configuradas):
+
 ```bash
-npx @ahmedmustahid/postgres-mcp-server
+npm run start:http
+# o
+make start-http
 ```
-Run the mcp inspector from another terminal
+
+2. En otra terminal, ejecuta el MCP Inspector:
+
 ```bash
 npx @modelcontextprotocol/inspector
 ```
-After selecting `Streamable HTTP` from drop down menu, insert `http://localhost:3000/mcp`(default) into URL.
 
-MCP tools:
+3. Selecciona `Streamable HTTP` del menú desplegable e ingresa la URL: `http://localhost:3000/mcp` (o el puerto que hayas configurado)
+
+#### MCP Tools:
 ![MCP Tools in MCP Inspector](images/http_tool.png)
 
-MCP Resource:
+#### MCP Resources:
 ![MCP Resource in MCP Inspector](images/http_resource.png)
 
 
@@ -223,51 +308,186 @@ The HTTP server includes a basic health check endpoint accessible at the `/healt
 
 ## Troubleshooting
 
-### Common Issues
+### Problemas Comunes
 
-1. **Database Connection Errors**
+1. **Errores de Conexión a la Base de Datos**
    ```bash
-   # Check your database credentials in .env
-   # Ensure PostgreSQL is running and accessible
+   # Verifica las credenciales en tu archivo .env
+   # Asegúrate de que PostgreSQL esté corriendo y accesible
+   psql -U your_username -h your_host -d your_database
    ```
 
-2. **Port Already in Use**
+2. **Puerto ya en Uso**
    ```bash
-   # Change PORT in .env or stop conflicting services
+   # Cambia el PORT en .env o detén los servicios en conflicto
    lsof -i :3000
+   # o
+   netstat -tulpn | grep 3000
    ```
 
-3. **Docker Build Issues**
+3. **El comando `node` no encuentra el archivo**
    ```bash
-   # Clean Docker cache
-   npm run docker:clean
+   # Asegúrate de haber compilado el proyecto primero
+   npm run build
+   
+   # Verifica que los archivos existen en dist/
+   ls -la dist/src/
+   ```
+
+4. **Problemas con Docker/Podman**
+   ```bash
+   # Limpia el caché de Docker
+   make docker-clean
    docker system prune -a
+   
+   # Para Podman
+   make podman-clean
+   podman system prune -af --volumes
    ```
 
-4. **Session Management (HTTP)**
+5. **Claude Desktop no detecta el servidor**
+   - Verifica que la ruta en `claude_desktop_config.json` sea absoluta y correcta
+   - Asegúrate de haber compilado el proyecto (`npm run build`)
+   - Revisa los logs de Claude Desktop para ver errores específicos
+   - Reinicia Claude Desktop después de cambiar la configuración
+
+6. **Gestión de Sesiones (HTTP)**
    ```bash
-   # Sessions are stored in memory and will reset on server restart
-   # For production, consider implementing persistent session storage
+   # Las sesiones se almacenan en memoria y se reiniciarán al reiniciar el servidor
+   # Para producción, considera implementar almacenamiento de sesiones persistente
    ```
 
 ## Development
 
+### Project Structure
+
+```
+postgres-mcp-server/
+├── src/
+│   ├── cli.ts              # CLI entry point
+│   ├── index.ts            # HTTP server entry
+│   ├── stdioIndex.ts       # Stdio server entry
+│   ├── config/             # Configuration files
+│   ├── http/               # HTTP transport implementation
+│   ├── resources/          # MCP resources
+│   ├── server/             # Core server logic
+│   ├── stdio/              # Stdio transport implementation
+│   ├── tools/              # MCP tools
+│   └── utils/              # Utilities
+├── dist/                   # Compiled output (generated)
+├── docker-compose.yml      # Docker compose config
+├── Makefile               # Build automation
+├── package.json           # npm configuration
+└── tsconfig.json          # TypeScript configuration
+```
+
 ### Adding New Resources
 
-1. Create a new file in `src/resources/`
-2. Implement the resource registration function
-3. Add it to `src/server/server.ts`
+1. Crea un nuevo archivo en `src/resources/`:
+```typescript
+// src/resources/myResource.ts
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+export async function registerMyResource(server: McpServer) {
+  server.resource({
+    uri: 'my-resource://example',
+    name: 'My Resource',
+    description: 'Description of my resource',
+    mimeType: 'application/json'
+  }, async () => {
+    return {
+      contents: [{
+        uri: 'my-resource://example',
+        mimeType: 'application/json',
+        text: JSON.stringify({ data: 'example' })
+      }]
+    };
+  });
+}
+```
+
+2. Importa y registra en `src/server/server.ts`:
+```typescript
+import { registerMyResource } from '../resources/myResource.js';
+
+// En la función setupServer
+await registerMyResource(server);
+```
+
+3. Recompila el proyecto:
+```bash
+npm run build
+```
 
 ### Adding New Tools
 
-1. Create a new file in `src/tools/`
-2. Implement the tool registration function
-3. Add it to `src/server/server.ts`
+1. Crea un nuevo archivo en `src/tools/`:
+```typescript
+// src/tools/myTool.ts
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+export async function registerMyTool(server: McpServer) {
+  server.tool({
+    name: 'my-tool',
+    description: 'Description of my tool',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        param: {
+          type: 'string',
+          description: 'Parameter description'
+        }
+      },
+      required: ['param']
+    }
+  }, async ({ param }) => {
+    // Tool implementation
+    return {
+      content: [{
+        type: 'text',
+        text: `Result: ${param}`
+      }]
+    };
+  });
+}
+```
+
+2. Importa y registra en `src/server/server.ts`
+3. Recompila el proyecto
+
+### Running Tests
+
+```bash
+# Actualmente no hay tests configurados
+npm run lint    # Linting (no configurado aún)
+npm run format  # Formatting (no configurado aún)
+```
+
+## Contributing
+
+Este es un fork personal del proyecto original. Si deseas contribuir:
+
+1. Haz fork de este repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Haz commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+Para contribuciones al proyecto original, visita: https://github.com/ahmedmustahid/postgres-mcp-server
 
 ## License
 
 MIT
 
-## Contributing
+## Credits
 
-Please read the contributing guidelines and submit pull requests to the main repository.
+Este proyecto es un fork de [postgres-mcp-server](https://github.com/ahmedmustahid/postgres-mcp-server) por Ahmed Mustahid.
+
+Proyecto original publicado en npm como `@ahmedmustahid/postgres-mcp-server`.
+
+## Resources and Links
+
+- [Model Context Protocol Documentation](https://modelcontextprotocol.io)
+- [MCP SDK](https://github.com/modelcontextprotocol/sdk)
+- [Proyecto Original](https://github.com/ahmedmustahid/postgres-mcp-server)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
