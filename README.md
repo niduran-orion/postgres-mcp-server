@@ -17,11 +17,12 @@ A Model Context Protocol (MCP) server that provides both HTTP and Stdio transpor
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 18.0.0 (para desarrollo local)
 - npm
-- PostgreSQL database (local o remota)
+- Docker y Docker Compose (para despliegue con contenedores)
+- PostgreSQL database (incluido en el docker-compose)
 
-### Installation
+### Opción 1: Instalación Local (Desarrollo)
 
 1. Clone este repositorio:
 ```bash
@@ -43,12 +44,117 @@ npm run build
 make build
 ```
 
-### Environment Setup
+4. Crea un archivo `.env` basado en `.env.example`:
+```bash
+cp .env.example .env
+# Edita .env con tus credenciales
+```
 
-Crea un archivo `.env` en el directorio raíz del proyecto con las credenciales de tu base de datos:
+5. Ejecuta el servidor:
+```bash
+# HTTP Server (puerto 4000 por defecto)
+npm run dev:http
+
+# Stdio Server
+npm run dev:stdio
+```
+
+### Opción 2: Despliegue con Docker (Recomendado)
+
+Este proyecto incluye un `docker-compose.yml` completo que despliega:
+- PostgreSQL 17
+- Airflow (webserver, scheduler, init)
+- MCP Server (HTTP y Stdio)
+
+#### Pasos para despliegue:
+
+1. Clone el repositorio:
+```bash
+git clone https://github.com/niduran-orion/postgres-mcp-server.git
+cd postgres-mcp-server
+```
+
+2. Crea el archivo `.env` desde el template:
+```bash
+cp .env.example .env
+```
+
+3. Edita el archivo `.env` con tus credenciales:
+```bash
+nano .env
+```
+
+Configuración mínima requerida:
+```bash
+# PostgreSQL (compartido por Airflow y MCP)
+POSTGRES_USER=airflow
+POSTGRES_PASSWORD=tu_password_seguro
+POSTGRES_DB=airflow
+
+# MCP Server
+POSTGRES_USERNAME=airflow
+POSTGRES_PASSWORD=tu_password_seguro
+POSTGRES_HOST=postgres
+POSTGRES_DATABASE=airflow
+
+# Airflow
+AIRFLOW__CORE__FERNET_KEY=genera_una_key_con_python_cryptography
+```
+
+4. Genera una Fernet Key para Airflow (si no la tienes):
+```bash
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+5. Levanta todos los servicios:
+```bash
+docker-compose up -d
+```
+
+6. Verifica que los servicios estén corriendo:
+```bash
+docker-compose ps
+```
+
+#### Acceso a los servicios:
+
+- **Airflow Web UI**: http://localhost:8080 (usuario: `admin`, contraseña: `admin`)
+- **MCP HTTP Server**: http://localhost:4000
+- **MCP HTTP Endpoint**: http://localhost:4000/mcp
+- **PostgreSQL**: localhost:5432
+
+#### Comandos útiles:
 
 ```bash
-# .env
+# Ver logs de todos los servicios
+docker-compose logs -f
+
+# Ver logs de MCP Server
+docker-compose logs -f mcp-http
+
+# Ver logs de Airflow
+docker-compose logs -f airflow-webserver
+
+# Detener todos los servicios
+docker-compose down
+
+# Detener y eliminar volúmenes (⚠️ elimina datos de PostgreSQL)
+docker-compose down -v
+
+# Reconstruir las imágenes
+docker-compose build
+
+# Reiniciar un servicio específico
+docker-compose restart mcp-http
+```
+
+### Environment Setup (Desarrollo Local)
+
+### Environment Setup (Desarrollo Local)
+
+Para desarrollo local sin Docker, crea un archivo `.env`:
+
+```bash
 # PostgreSQL Database Configuration
 POSTGRES_USERNAME=your_username
 POSTGRES_PASSWORD=your_password
@@ -57,22 +163,22 @@ POSTGRES_PORT=5432
 POSTGRES_DATABASE=your_database
 
 # HTTP Server Configuration
-PORT=3000
+PORT=4000
 HOST=0.0.0.0
 
-# CORS Configuration (comma-separated list of allowed origins)
-CORS_ORIGIN=http://localhost:8080,http://localhost:3000
+# CORS Configuration
+CORS_ORIGIN=http://localhost:8080,http://localhost:4000
 
 # Environment
 NODE_ENV=development
 ```
 
-### Running the Server
+### Running the Server (Desarrollo Local)
 
 #### Modo Desarrollo
 
 ```bash
-# HTTP Server (puerto 3000 por defecto)
+# HTTP Server (puerto 4000 por defecto)
 npm run dev:http
 # o
 make dev-http
@@ -97,60 +203,53 @@ npm run start:stdio
 make start-stdio
 ```
 
-### Environment Variables
+## Docker/Podman Usage (Servicios Individuales)
 
-## Docker/Podman Usage
+Si solo quieres ejecutar el MCP Server sin Airflow, necesitarás crear un docker-compose simplificado o ejecutar los contenedores manualmente:
 
-### Usando Docker
-
-1. Asegúrate de tener Docker instalado
-2. Crea tu archivo `.env` con las credenciales de la base de datos
-3. Ejecuta los comandos:
+### Usando Docker (Solo MCP)
 
 ```bash
-# Construir las imágenes
-make docker-build
+# Construir solo la imagen del MCP HTTP
+docker build -f src/http/Dockerfile -t mcp-http:latest .
 
-# Levantar el servidor HTTP
-make docker-up
+# Ejecutar el contenedor (asegúrate de tener PostgreSQL corriendo)
+docker run -d \
+  --name mcp-http \
+  -p 4000:4000 \
+  -e POSTGRES_USERNAME=your_user \
+  -e POSTGRES_PASSWORD=your_password \
+  -e POSTGRES_HOST=your_host \
+  -e POSTGRES_PORT=5432 \
+  -e POSTGRES_DATABASE=your_database \
+  -e PORT=4000 \
+  mcp-http:latest
+```
 
-# Ver logs
-make docker-logs
-
-# Detener los contenedores
-make docker-down
-
-# Limpiar todo
-make docker-clean
 ```
 
 ### Usando Podman
 
-1. Instala Podman desde [aquí](https://podman.io/docs/installation)
-2. Instala `uv` desde [aquí](https://docs.astral.sh/uv/getting-started/installation/)
-3. Instala podman-compose: `uv add podman-compose` (o `uv sync` para sincronizar los paquetes en `pyproject.toml`)
-4. Crea tu archivo `.env` con las credenciales
+Similar al uso de Docker, pero con comandos de Podman:
 
 ```bash
-# Cargar las variables de entorno
-set -a
-source .env
-set +a
-
-# Iniciar Podman (si no está corriendo)
+# Iniciar Podman machine (si usas macOS/Windows)
 podman machine start
 
-# Levantar el servidor HTTP
-make podman-up
+# Construir la imagen
+podman build -f src/http/Dockerfile -t mcp-http:latest .
 
-# Ver logs
-make podman-logs
-
-# Detener
-make podman-down
-
-# Limpiar todo
-make podman-clean
+# Ejecutar el contenedor
+podman run -d \
+  --name mcp-http \
+  -p 4000:4000 \
+  -e POSTGRES_USERNAME=your_user \
+  -e POSTGRES_PASSWORD=your_password \
+  -e POSTGRES_HOST=your_host \
+  -e POSTGRES_PORT=5432 \
+  -e POSTGRES_DATABASE=your_database \
+  -e PORT=4000 \
+  mcp-http:latest
 ```
 
 ## Integración con Claude Desktop
@@ -245,7 +344,7 @@ make start-http
 npx @modelcontextprotocol/inspector
 ```
 
-3. Selecciona `Streamable HTTP` del menú desplegable e ingresa la URL: `http://localhost:3000/mcp` (o el puerto que hayas configurado)
+3. Selecciona `Streamable HTTP` del menú desplegable e ingresa la URL: `http://localhost:4000/mcp` (puerto actualizado)
 
 #### MCP Tools:
 ![MCP Tools in MCP Inspector](images/http_tool.png)
@@ -258,17 +357,18 @@ npx @modelcontextprotocol/inspector
 
 ### Environment Variables
 
-You have to specify these inside the .env file.
+Debes especificar estas variables en el archivo `.env`:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `POSTGRES_USERNAME` | PostgreSQL username | - | Yes |
 | `POSTGRES_PASSWORD` | PostgreSQL password | - | Yes |
 | `POSTGRES_HOST` | PostgreSQL host | - | Yes |
+| `POSTGRES_PORT` | PostgreSQL port | 5432 | No |
 | `POSTGRES_DATABASE` | PostgreSQL database name | - | Yes |
-| `PORT` | HTTP server port | 3000 | No |
+| `PORT` | HTTP server port | 4000 | No |
 | `HOST` | HTTP server host | 0.0.0.0 | No |
-| `CORS_ORIGIN` | Allowed CORS origins (comma-separated) | localhost:8080,localhost:3000 | No |
+| `CORS_ORIGIN` | Allowed CORS origins (comma-separated) | localhost:8080,localhost:4000 | No |
 | `NODE_ENV` | Environment mode | development | No |
 
 
